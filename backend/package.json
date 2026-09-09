@@ -1,0 +1,29 @@
+{
+    "name": "checkout-backend",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "node --watch src/server.js",
+        "start": "node src/server.js",
+        "migrate": "knex migrate:latest --knexfile knexfile.js",
+        "migrate:rollback": "knex migrate:rollback --all --knexfile knexfile.js",
+        "seed": "knex seed:run --knexfile knexfile.js",
+        "smoke": "node scripts/smoke.js",
+        "test": "NODE_ENV=test vitest run",
+        "lint": "eslint ."
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^5.1.0",
+        "helmet": "^8.0.0",
+        "knex": "^3.1.0",
+        "mysql2": "^3.11.4",
+        "zod": "^3.23.8"
+    },
+    "devDependencies": {
+        "eslint": "^9.15.0",
+        "supertest": "^7.0.0",
+        "vitest": "^2.1.5"
+    }
+}

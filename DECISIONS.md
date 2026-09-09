@@ -113,6 +113,18 @@ Application validation provides useful errors; transactions, locks, foreign keys
 
 **Consequences:** API clients format minor values for display. Production should impose a maximum order total below JavaScript's safe integer bound or migrate arithmetic to `BigInt`/decimal objects for exceptionally large values.
 
+## Decision: Request-scoped loading and synchronous submission guards
+
+**Context:** Production cold starts can keep requests pending for seconds, while React state updates alone do not prevent a second click in the same render frame.
+
+**Options considered:** one page-wide loading overlay; disabled controls backed only by state; request-scoped state plus synchronous refs.
+
+**Choice:** represent initial resource loading separately from successful-empty and error states, keep mutation feedback scoped to the affected control/item, and claim duplicate-sensitive actions synchronously with refs before awaiting the API.
+
+**Why:** Slow responses remain understandable without hiding useful unrelated UI. The ref is updated immediately, closing the small window before React renders a disabled button. Backend checkout idempotency remains the authoritative correctness mechanism.
+
+**Consequences:** The frontend maintains a small amount of explicit pending state. It deliberately has no artificial delay or short client timeout; genuine network errors use the existing structured error UI.
+
 ## 3. Concrete concurrency and transaction strategy
 
 ### Two customers buy the final unit

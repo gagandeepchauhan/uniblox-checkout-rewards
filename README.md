@@ -180,13 +180,46 @@ REQUIREMENTS.md         final assignment audit
 
 The UI creates one cart on load. Its initialization guard remains safe when React StrictMode replays development effects. Add/update/remove items, enter an optional coupon, and check out. The displayed retry key is retained so pressing checkout again demonstrates safe replay; “New key” demonstrates a different logical request. The order panel shows immutable totals. The admin panel generates the next coupon, reconciles summary metrics, and lists successful immutable order snapshots with expandable item details.
 
+Products, cart creation, and the combined admin data load have distinct loading, empty, success, and error states. Mutations use request-scoped pending states: add/update/remove remain scoped to the affected product, while cart creation, checkout, coupon generation, and report refresh disable only their relevant controls. Synchronous in-flight guards prevent duplicate clicks before React renders the disabled state. The UI does not impose a client timeout, so a slow or cold backend remains visibly pending instead of showing a premature empty state.
+
 ## Deployment
 
-- Build `frontend/` on Vercel with `VITE_API_BASE_URL` set to the Render API URL.
-- Run `npm start --workspace backend` on Render and set `FRONTEND_ORIGIN`, `PORT`, and managed-MySQL variables.
-- Run `npm run migrate` as a controlled release step against the managed MySQL database.
-- Do not automatically seed production. Invoke `npm run seed` only when the fixed demo catalog is intended.
-- Use TLS options required by the selected MySQL provider. No application structure or business logic changes are necessary.
+The production layout is Vercel (React/Vite) → Railway (Express) → Railway MySQL. The repository includes `vercel.json` and `railway.json` so the checked-in build, start, migration, and health-check behavior is reproducible.
+
+### Railway backend and MySQL
+
+1. Create a Railway project from this repository and add a MySQL service in the same project.
+2. Configure the backend service with the variables below. Railway supplies `PORT`; do not set a fixed production port. Map the `DB_*` values to the MySQL service's `MYSQL*` variables using Railway reference variables so credentials are not copied into source.
+3. Deploy. Railway runs `npm ci`, then `npm run migrate` as the pre-deploy command, starts `npm start --workspace backend`, and checks `/health`.
+4. After the first successful migration, intentionally run `npm run seed` once in the backend service environment. The seed upserts the five demo product IDs and never truncates carts, orders, or coupons. Do not make it an automatic deploy step because rerunning it restores demo inventory.
+5. Generate a public backend domain and verify `/health` and `/api/products` before configuring Vercel.
+
+Railway backend variable names:
+
+```text
+NODE_ENV
+DB_HOST
+DB_PORT
+DB_NAME
+DB_USER
+DB_PASSWORD
+DB_POOL_MIN
+DB_POOL_MAX
+COUPON_ORDER_INTERVAL
+COUPON_DISCOUNT_PERCENT
+FRONTEND_ORIGIN
+```
+
+Use the Railway private-network MySQL host/port for `DB_HOST` and `DB_PORT`. `FRONTEND_ORIGIN` must be the exact final Vercel origin. Authentication for `/api/admin/*` is outside this assignment, so production access should be treated as demo-only until an auth layer is added.
+
+### Vercel frontend
+
+1. Import the same repository into Vercel. The root `vercel.json` runs the workspace production build and publishes `frontend/dist`.
+2. Set `VITE_API_BASE_URL` to the public Railway backend URL plus `/api`, for example `https://service.example/api`, for Production (and Preview if desired).
+3. Deploy, then update Railway's `FRONTEND_ORIGIN` to the exact Vercel production origin and redeploy the backend configuration.
+4. Verify the Vercel page, API/CORS communication, cart mutations, checkout/replay, coupons, reports, and successful-order snapshots from the production browser.
+
+`VITE_API_BASE_URL` is public configuration by design. Never expose database credentials or deployment tokens through a `VITE_*` variable. Provider credentials remain in their encrypted environment settings and all `.env` variants remain ignored by Git.
 
 ## Scope
 

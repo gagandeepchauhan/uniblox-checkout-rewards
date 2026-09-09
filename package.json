@@ -1,7 +1,10 @@
 {
     "name": "checkout-rewards-service",
     "private": true,
-    "workspaces": ["backend", "frontend"],
+    "workspaces": [
+        "backend",
+        "frontend"
+    ],
     "scripts": {
         "dev": "npm run dev --workspace backend",
         "dev:frontend": "npm run dev --workspace frontend",
@@ -11,9 +14,12 @@
         "lint": "npm run lint --workspaces --if-present",
         "build": "npm run build --workspace frontend"
     },
-    "engines": { "node": ">=18" },
+    "engines": {
+        "node": ">=18"
+    },
     "devDependencies": {
         "@eslint/js": "^9.15.0",
-        "eslint": "^9.15.0"
+        "eslint": "^9.15.0",
+        "railway": "^3.11.0"
     }
 }

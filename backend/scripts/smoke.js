@@ -75,7 +75,7 @@ async function main() {
     if (insufficient.error.code !== 'INSUFFICIENT_INVENTORY') throw new Error('Expected insufficient inventory error');
 
     let report = (await call('/admin/report')).data;
-    const ordersUntilMilestone = (interval - (report.totalOrders % interval)) % interval;
+    const ordersUntilMilestone = interval - (report.totalOrders % interval);
     for (let index = 0; index < ordersUntilMilestone; index += 1) {
         const milestoneCart = await createCart(2, 1);
         await checkout(milestoneCart, `milestone-${index}`);

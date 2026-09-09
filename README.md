@@ -184,13 +184,13 @@ Products, cart creation, and the combined admin data load have distinct loading,
 
 ## Deployment
 
-The production layout is Vercel (React/Vite) → Railway (Express) → Railway MySQL. The repository includes `vercel.json` and `railway.json` so the checked-in build, start, migration, and health-check behavior is reproducible.
+The production layout is Vercel (React/Vite) → Railway (Express) → Railway MySQL. The repository includes `vercel.json` and `.railway/railway.ts` so the checked-in build, start, migration, and health-check behavior is reproducible. Railway's Infrastructure-as-Code SDK is a root development dependency; applying that file requires Node.js 22 or newer, while the application itself supports Node.js 18 or newer.
 
 ### Railway backend and MySQL
 
 1. Create a Railway project from this repository and add a MySQL service in the same project.
 2. Configure the backend service with the variables below. Railway supplies `PORT`; do not set a fixed production port. Map the `DB_*` values to the MySQL service's `MYSQL*` variables using Railway reference variables so credentials are not copied into source.
-3. Deploy. Railway runs `npm ci`, then `npm run migrate` as the pre-deploy command, starts `npm start --workspace backend`, and checks `/health`.
+3. Apply the checked-in infrastructure configuration with `railway config plan` followed by `railway config apply`, then deploy. Railway runs `npm run migrate` as the pre-deploy command, starts `npm start --workspace backend`, and checks `/health`.
 4. After the first successful migration, intentionally run `npm run seed` once in the backend service environment. The seed upserts the five demo product IDs and never truncates carts, orders, or coupons. Do not make it an automatic deploy step because rerunning it restores demo inventory.
 5. Generate a public backend domain and verify `/health` and `/api/products` before configuring Vercel.
 
@@ -220,6 +220,8 @@ Use the Railway private-network MySQL host/port for `DB_HOST` and `DB_PORT`. `FR
 4. Verify the Vercel page, API/CORS communication, cart mutations, checkout/replay, coupons, reports, and successful-order snapshots from the production browser.
 
 `VITE_API_BASE_URL` is public configuration by design. Never expose database credentials or deployment tokens through a `VITE_*` variable. Provider credentials remain in their encrypted environment settings and all `.env` variants remain ignored by Git.
+
+Current production backend: `https://backend-production-d939.up.railway.app`
 
 ## Scope
 

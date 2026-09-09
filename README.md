@@ -140,7 +140,10 @@ Authentication is intentionally out of scope; `/api/admin/*` must be protected a
 | --- | --- | --- | --- |
 | `POST` | `/api/admin/coupons/generate` | Generate the oldest eligible unrewarded milestone | `201`, coupon; or `409` if none |
 | `GET` | `/api/admin/coupons` | List coupons and statuses | `200` |
+| `GET` | `/api/admin/orders` | List successful immutable order snapshots, newest sequence first | `200` |
 | `GET` | `/api/admin/report` | Read-only order/coupon reconciliation | `200` |
+
+The admin order list includes cart/order identifiers, successful sequence, timestamp, item name/quantity/checkout price/line subtotal, coupon snapshot, and gross/discount/net totals. It is intentionally unpaginated for this small assignment dataset; pagination is deferred for production scale.
 
 ## Database schema
 
@@ -175,7 +178,7 @@ REQUIREMENTS.md         final assignment audit
 
 ## Frontend walkthrough
 
-The UI creates a cart on load. Add/update/remove items, enter an optional coupon, and check out. The displayed retry key is retained so pressing checkout again demonstrates safe replay; “New key” demonstrates a different logical request. The order panel shows immutable totals. The admin panel generates the next coupon and reconciles orders, revenue, coupon status, and purchased quantity.
+The UI creates one cart on load. Its initialization guard remains safe when React StrictMode replays development effects. Add/update/remove items, enter an optional coupon, and check out. The displayed retry key is retained so pressing checkout again demonstrates safe replay; “New key” demonstrates a different logical request. The order panel shows immutable totals. The admin panel generates the next coupon, reconciles summary metrics, and lists successful immutable order snapshots with expandable item details.
 
 ## Deployment
 

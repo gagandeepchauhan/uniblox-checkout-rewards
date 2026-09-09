@@ -3,7 +3,7 @@ import { parse, parseId, parseIdempotencyKey, itemSchema, quantitySchema, checko
 import { listProducts } from './services/products.js';
 import { createCart, getCart, addCartItem, updateCartItem, removeCartItem } from './services/carts.js';
 import { checkout } from './services/checkout.js';
-import { getOrder } from './services/orders.js';
+import { getOrder, listOrders } from './services/orders.js';
 import { generateCoupon, listCoupons } from './services/coupons.js';
 import { getAdminReport } from './services/report.js';
 
@@ -56,6 +56,10 @@ apiRouter.post('/admin/coupons/generate', asyncRoute(async (_request, response) 
 
 apiRouter.get('/admin/coupons', asyncRoute(async (_request, response) => {
     response.json({ data: await listCoupons() });
+}));
+
+apiRouter.get('/admin/orders', asyncRoute(async (_request, response) => {
+    response.json({ data: await listOrders() });
 }));
 
 apiRouter.get('/admin/report', asyncRoute(async (_request, response) => {

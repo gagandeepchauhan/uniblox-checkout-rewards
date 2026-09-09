@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+const dateTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 const formatMoney = (minor) => money.format(minor / 100);
+const formatDateTime = (value) => dateTime.format(new Date(value));
 const makeKey = () => globalThis.crypto?.randomUUID?.() ?? `checkout-${Date.now()}-${Math.random()}`;
 
 function ErrorBanner({ error, clear }) {
@@ -99,7 +101,7 @@ function OrderResult({ order, replayed }) {
     );
 }
 
-function Admin({ coupons, report, generate, refresh }) {
+function Admin({ coupons, report, orders, ordersLoading, ordersError, generate, refresh }) {
     return (
         <section className="admin-section">
             <div className="admin-head"><div><p className="eyebrow">Administrative operations</p><h2>Rewards & reconciliation</h2></div><div><button onClick={generate}>Generate eligible coupon</button><button className="secondary" onClick={refresh}>Refresh report</button></div></div>
@@ -112,6 +114,41 @@ function Admin({ coupons, report, generate, refresh }) {
             <div className="admin-grid">
                 <div><h3>Coupons</h3>{!coupons.length && <p className="muted">No coupons generated yet.</p>}{coupons.map((coupon) => <div className="coupon" key={coupon.id}><code>{coupon.code}</code><span>{coupon.discountPercent}% · milestone {coupon.milestoneOrderNumber}</span><b className={coupon.status.toLowerCase()}>{coupon.status}</b></div>)}</div>
                 <div><h3>Purchased by product</h3>{!report?.purchasedByProduct?.length && <p className="muted">No completed purchases yet.</p>}{report?.purchasedByProduct?.map((row) => <div className="report-row" key={row.productId}><span>{row.productName}</span><strong>{row.purchasedQuantity}</strong></div>)}</div>
+            </div>
+            <div className="orders-section">
+                <h3>Successful Orders</h3>
+                {ordersLoading && <p className="muted">Loading successful orders…</p>}
+                {!ordersLoading && ordersError && <p className="orders-error" role="alert">{ordersError}</p>}
+                {!ordersLoading && !ordersError && !orders.length && <p className="muted">No successful orders yet.</p>}
+                {!ordersLoading && !ordersError && Boolean(orders.length) && (
+                    <div className="orders-table-wrap">
+                        <table className="orders-table">
+                            <thead><tr><th>Order</th><th>Placed</th><th>Items</th><th>Coupon</th><th>Gross</th><th>Discount</th><th>Final total</th></tr></thead>
+                            <tbody>{orders.map((order) => (
+                                <tr key={order.id}>
+                                    <td><strong>#{order.id}</strong><span>Sequence {order.sequenceNumber} · Cart #{order.cartId}</span></td>
+                                    <td>{formatDateTime(order.createdAt)}</td>
+                                    <td>
+                                        <details>
+                                            <summary>{order.items.length} {order.items.length === 1 ? 'item' : 'items'}</summary>
+                                            <div className="order-items">{order.items.map((item) => (
+                                                <div key={item.productId}>
+                                                    <strong>{item.productName}</strong>
+                                                    <span>{item.quantity} × {formatMoney(item.unitPriceMinor)}</span>
+                                                    <b>{formatMoney(item.lineSubtotalMinor)}</b>
+                                                </div>
+                                            ))}</div>
+                                        </details>
+                                    </td>
+                                    <td>{order.coupon?.code ?? '—'}</td>
+                                    <td>{formatMoney(order.grossTotalMinor)}</td>
+                                    <td>− {formatMoney(order.discountMinor)}</td>
+                                    <td><strong>{formatMoney(order.netTotalMinor)}</strong></td>
+                                </tr>
+                            ))}</tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </section>
     );
@@ -126,14 +163,32 @@ export function App() {
     const [replayed, setReplayed] = useState(false);
     const [coupons, setCoupons] = useState([]);
     const [report, setReport] = useState(null);
+    const [orders, setOrders] = useState([]);
+    const [ordersLoading, setOrdersLoading] = useState(true);
+    const [ordersError, setOrdersError] = useState(null);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    const initializationStarted = useRef(false);
 
     const handleError = (caught) => setError({ code: caught.code, message: caught.message });
     const refreshAdmin = useCallback(async () => {
-        const [couponResult, reportResult] = await Promise.all([api('/admin/coupons'), api('/admin/report')]);
-        setCoupons(couponResult.data);
-        setReport(reportResult.data);
+        setOrdersLoading(true);
+        setOrdersError(null);
+        try {
+            const [couponResult, reportResult, orderResult] = await Promise.all([
+                api('/admin/coupons'),
+                api('/admin/report'),
+                api('/admin/orders')
+            ]);
+            setCoupons(couponResult.data);
+            setReport(reportResult.data);
+            setOrders(orderResult.data);
+        } catch (caught) {
+            setOrdersError(caught.message);
+            throw caught;
+        } finally {
+            setOrdersLoading(false);
+        }
     }, []);
     const refreshProducts = useCallback(async () => setProducts((await api('/products')).data), []);
     const createNewCart = useCallback(async () => {
@@ -145,6 +200,8 @@ export function App() {
     }, []);
 
     useEffect(() => {
+        if (initializationStarted.current) return;
+        initializationStarted.current = true;
         Promise.all([refreshProducts(), createNewCart(), refreshAdmin()]).catch(handleError);
     }, [createNewCart, refreshAdmin, refreshProducts]);
 
@@ -189,7 +246,7 @@ export function App() {
                 <CartPanel cart={cart} update={(id, quantity) => mutateCart(`/carts/${cart.id}/items/${id}`, 'PATCH', { quantity })} remove={(id) => mutateCart(`/carts/${cart.id}/items/${id}`, 'DELETE')} checkout={performCheckout} couponCode={couponCode} setCouponCode={setCouponCode} checkoutKey={checkoutKey} newCheckoutKey={() => setCheckoutKey(makeKey())} loading={loading} allowRetry={Boolean(order)} />
             </div>
             <OrderResult order={order} replayed={replayed} />
-            <Admin coupons={coupons} report={report} generate={generateCoupon} refresh={() => refreshAdmin().catch(handleError)} />
+            <Admin coupons={coupons} report={report} orders={orders} ordersLoading={ordersLoading} ordersError={ordersError} generate={generateCoupon} refresh={() => refreshAdmin().catch(handleError)} />
             <footer>All monetary values are stored and calculated as integer paise.</footer>
         </main>
     );

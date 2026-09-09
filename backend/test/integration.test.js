@@ -206,6 +206,48 @@ describe('coupon milestones and redemption', () => {
 });
 
 describe('administrative reporting', () => {
+    it('lists only successful orders newest first using immutable snapshots without mutating state', async () => {
+        await createCart(3, 1);
+        const firstCart = await createCart(1, 2);
+        const firstOrder = await checkoutCart(firstCart, 'admin-order-list-first');
+        await db('products').where({ id: 1 }).update({ name: 'Changed after checkout', price_minor: 1 });
+        const secondCart = await createCart(2, 1);
+        const secondOrder = await checkoutCart(secondCart, 'admin-order-list-second');
+        const stateBefore = {
+            orders: Number((await db('orders').count({ count: '*' }).first()).count),
+            carts: Number((await db('carts').count({ count: '*' }).first()).count),
+            inventory: Number((await db('products').where({ id: 2 }).first()).inventory)
+        };
+
+        const firstRead = await request(app).get('/api/admin/orders').expect(200);
+        const secondRead = await request(app).get('/api/admin/orders').expect(200);
+
+        expect(secondRead.body).toEqual(firstRead.body);
+        expect(firstRead.body.data.map((order) => order.id)).toEqual([
+            secondOrder.body.data.id,
+            firstOrder.body.data.id
+        ]);
+        expect(firstRead.body.data[1]).toMatchObject({
+            cartId: firstCart,
+            sequenceNumber: 1,
+            grossTotalMinor: 1799800,
+            discountMinor: 0,
+            netTotalMinor: 1799800,
+            items: [{
+                productId: 1,
+                productName: 'Mechanical Keyboard',
+                unitPriceMinor: 899900,
+                quantity: 2,
+                lineSubtotalMinor: 1799800
+            }]
+        });
+        expect({
+            orders: Number((await db('orders').count({ count: '*' }).first()).count),
+            carts: Number((await db('carts').count({ count: '*' }).first()).count),
+            inventory: Number((await db('products').where({ id: 2 }).first()).inventory)
+        }).toEqual(stateBefore);
+    });
+
     it('reconciles immutable order and coupon state and is read-only', async () => {
         const coupon = await createAvailableCoupon();
         const cartId = await createCart(1, 2);

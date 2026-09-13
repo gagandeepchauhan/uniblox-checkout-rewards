@@ -184,7 +184,7 @@ Products, cart creation, and the combined admin data load have distinct loading,
 
 ## Deployment
 
-The production layout is Vercel (React/Vite) → Railway (Express) → Railway MySQL. The repository includes `frontend/vercel.json` and `.railway/railway.ts` so the checked-in build, start, migration, and health-check behavior is reproducible. Railway's Infrastructure-as-Code SDK is a root development dependency; applying that file requires Node.js 22 or newer, while the application itself supports Node.js 18 or newer.
+The production layout is Vercel (React/Vite) → Railway (Express) → Railway MySQL. The repository includes `vercel.json` and `.railway/railway.ts` so the checked-in build, start, migration, and health-check behavior is reproducible. Railway's Infrastructure-as-Code SDK is a root development dependency; applying that file requires Node.js 22 or newer, while the application itself supports Node.js 18 or newer.
 
 ### Railway backend and MySQL
 
@@ -214,7 +214,7 @@ Use the Railway private-network MySQL host/port for `DB_HOST` and `DB_PORT`. `FR
 
 ### Vercel frontend
 
-1. Import the same repository into Vercel with `frontend` as the Vercel project root. Its `vercel.json` runs the Vite production build and publishes `dist`.
+1. Import the repository into Vercel with the repository root as the Vercel project root. The root `vercel.json` runs the workspace production build and publishes `frontend/dist`.
 2. Set `VITE_API_BASE_URL` to the public Railway backend URL plus `/api`, for example `https://service.example/api`, for Production (and Preview if desired).
 3. Deploy, then update Railway's `FRONTEND_ORIGIN` to the exact Vercel production origin and redeploy the backend configuration.
 4. Verify the Vercel page, API/CORS communication, cart mutations, checkout/replay, coupons, reports, and successful-order snapshots from the production browser.

@@ -80,6 +80,15 @@ describe('products and carts', () => {
         const missing = await request(app).post(`/api/carts/${cartId}/items`).send({ productId: 9999, quantity: 1 }).expect(404);
         expect(missing.body.error.code).toBe('PRODUCT_NOT_FOUND');
     });
+
+    it('rejects add and update quantities above the current inventory', async () => {
+        const cartId = await createCart(null);
+        const unavailableAdd = await request(app).post(`/api/carts/${cartId}/items`).send({ productId: 5, quantity: 2 }).expect(409);
+        expect(unavailableAdd.body.error.code).toBe('INSUFFICIENT_INVENTORY');
+        await request(app).post(`/api/carts/${cartId}/items`).send({ productId: 5, quantity: 1 }).expect(201);
+        const unavailableUpdate = await request(app).patch(`/api/carts/${cartId}/items/5`).send({ quantity: 2 }).expect(409);
+        expect(unavailableUpdate.body.error.code).toBe('INSUFFICIENT_INVENTORY');
+    });
 });
 
 describe('transactional checkout and idempotency', () => {
@@ -142,11 +151,12 @@ describe('transactional checkout and idempotency', () => {
 
     it('rolls back every inventory change when any cart line is unavailable', async () => {
         const cartId = await createCart(1, 2);
-        await request(app).post(`/api/carts/${cartId}/items`).send({ productId: 5, quantity: 2 }).expect(201);
+        await request(app).post(`/api/carts/${cartId}/items`).send({ productId: 5, quantity: 1 }).expect(201);
+        await db('products').where({ id: 5 }).update({ inventory: 0 });
         const failed = await checkoutCart(cartId, 'atomic-failure-key');
         expect(failed.status).toBe(409);
         expect(Number((await db('products').where({ id: 1 }).first()).inventory)).toBe(20);
-        expect(Number((await db('products').where({ id: 5 }).first()).inventory)).toBe(1);
+        expect(Number((await db('products').where({ id: 5 }).first()).inventory)).toBe(0);
         expect(Number((await db('orders').count({ count: '*' }).first()).count)).toBe(0);
     });
 });
@@ -198,7 +208,8 @@ describe('coupon milestones and redemption', () => {
 
     it('does not consume a coupon when checkout fails', async () => {
         const coupon = await createAvailableCoupon();
-        const cartId = await createCart(5, 2);
+        const cartId = await createCart(5, 1);
+        await db('products').where({ id: 5 }).update({ inventory: 0 });
         const failed = await checkoutCart(cartId, 'failed-coupon-checkout', { couponCode: coupon.code });
         expect(failed.status).toBe(409);
         expect((await db('coupons').where({ id: coupon.id }).first()).status).toBe('AVAILABLE');

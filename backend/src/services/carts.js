@@ -47,7 +47,7 @@ export async function addCartItem(cartId, { productId, quantity }) {
         await requireOpenCart(trx, cartId, true);
         const product = await trx('products').where({ id: productId }).first();
         if (!product) throw notFound('product', productId);
-        if (product.inventory < quantity) throw new AppError(404, 'INSUFFICIENT_INVENTORY', 'Requested quantity is not available.', { cartId, productId });
+        if (product.inventory < quantity) throw new AppError(409, 'INSUFFICIENT_INVENTORY', 'Requested quantity is not available.', { cartId, productId });
         await trx('cart_items')
             .insert({ cart_id: cartId, product_id: productId, quantity })
             .onConflict(['cart_id', 'product_id'])
@@ -61,7 +61,7 @@ export async function updateCartItem(cartId, productId, { quantity }) {
         await requireOpenCart(trx, cartId, true);
         const product = await trx('products').where({ id: productId }).first();
         if (!product) throw notFound('product', productId);
-        if (product.inventory < quantity) throw new AppError(404, 'INSUFFICIENT_INVENTORY', 'Requested quantity is not available.', { cartId, productId });
+        if (product.inventory < quantity) throw new AppError(409, 'INSUFFICIENT_INVENTORY', 'Requested quantity is not available.', { cartId, productId });
         const changed = await trx('cart_items').where({ cart_id: cartId, product_id: productId }).update({
             quantity,
             updated_at: trx.fn.now()
